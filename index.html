@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Control Financiero Personal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            width: 98%;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow-x: hidden;
+        }
+        h1, h2 {
+            color: #1F4E78;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+        .financial-table {
+            min-width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .financial-table th, .financial-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: right;
+            white-space: nowrap;
+        }
+        .financial-table th {
+            background-color: #1F4E78;
+            color: white;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .financial-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .financial-table td:first-child {
+            text-align: left;
+            font-weight: bold;
+            position: sticky;
+            left: 0;
+            background-color: inherit;
+            z-index: 1;
+        }
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+            width: 100%;
+        }
+        .chart {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            height: 400px;
+        }
+        input, select {
+            width: calc(100% - 16px);
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .total-row {
+            background-color: #e8f4ff !important;
+            font-weight: bold;
+        }
+        .balance-row {
+            background-color: #f0f8ff !important;
+            font-weight: bold;
+        }
+        .daily-entry {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .daily-entry form {
+            display: grid;
+            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #1F4E78;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            height: fit-content;
+            align-self: flex-end;
+        }
+        button:hover {
+            background-color: #153656;
+        }
+        .success-message {
+            color: #28a745;
+            margin-top: 10px;
+            font-weight: bold;
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            .financial-table th, .financial-table td {
+                padding: 6px;
+                font-size: 14px;
+            }
+            .chart {
+                min-height: 250px;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Control Financiero Anual</h1>
+        
+        <div class="daily-entry">
+            <h2>Registro Diario</h2>
+            <form id="dailyEntryForm">
+                <div class="form-group">
+                    <label for="entryDate">Fecha:</label>
+                    <input type="date" id="entryDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="entryCategory">Categoría:</label>
+                    <select id="entryCategory" required>
+                        <option value="Ingresos">Ingresos</option>
+                        <option value="Pensión">Pensión</option>
+                        <option value="Cuentas Básicas">Cuentas Básicas</option>
+                        <option value="Bencina y Movilización">Bencina y Movilización</option>
+                        <option value="Comida">Comida</option>
+                        <option value="Entretenimiento">Entretenimiento</option>
+                        <option value="Cuerpo y Físico">Cuerpo y Físico</option>
+                        <option value="Ahorro">Ahorro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="entryAmount">Monto:</label>
+                    <input type="number" id="entryAmount" required>
+                </div>
+                <div class="form-group">
+                    <label for="entryDescription">Descripción:</label>
+                    <input type="text" id="entryDescription">
+                </div>
+                <div class="form-group">
+                    <button type="submit">Agregar</button>
+                </div>
+            </form>
+            <div id="successMessage" class="success-message">Entrada registrada correctamente</div>
+            <button id="clearDataButton" style="margin-top: 20px;">Limpiar Datos</button>
+        </div>
+
+        <div class="table-container">
+            <table class="financial-table">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th>Enero</th>
+                        <th>Febrero</th>
+                        <th>Marzo</th>
+                        <th>Abril</th>
+                        <th>Mayo</th>
+                        <th>Junio</th>
+                        <th>Julio</th>
+                        <th>Agosto</th>
+                        <th>Septiembre</th>
+                        <th>Octubre</th>
+                        <th>Noviembre</th>
+                        <th>Diciembre</th>
+                        <th>Total Anual</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="charts-container">
+            <div class="chart">
+                <canvas id="balanceChart"></canvas>
+            </div>
+            <div class="chart">
+                <canvas id="expensesChart"></canvas>
+            </div>
+            <div class="chart">
+                <canvas id="distributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let balanceChart = null;
+        let expensesChart = null;
+        let distributionChart = null;
+
+        const categories = [
+            'Ingresos',
+            'Pensión',
+            'Cuentas Básicas',
+            'Bencina y Movilización',
+            'Comida',
+            'Entretenimiento',
+            'Cuerpo y Físico',
+            'Ahorro',
+            'Total Gastos',
+            'Balance'
+        ];
+
+        const months = [
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
+
+        // Define expense categories
+        const expenseCategories = [
+            'Pensión',
+            'Cuentas Básicas',
+            'Bencina y Movilización',
+            'Comida',
+            'Entretenimiento',
+            'Cuerpo y Físico',
+            'Ahorro'
+        ];
+
+        // Define chart colors
+        const chartColors = [
+            '#5DA5DA', // Azul claro - Pensión
+            '#FAA43A', // Naranja - Cuentas Básicas
+            '#60BD68', // Verde - Bencina y Movilización
+            '#F17CB0', // Rosa - Comida
+            '#B276B2', // Morado - Entretenimiento
+            '#DECF3F', // Amarillo - Cuerpo y Físico
+            '#F15854'  // Rojo - Ahorro
+        ];
+
+        let data = {};
+        let dailyEntries = [];
+
+        function initializeCharts() {
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            };
+
+            // Balance Chart
+            const balanceCtx = document.getElementById('balanceChart').getContext('2d');
+            balanceChart = new Chart(balanceCtx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Balance Mensual',
+                        data: new Array(12).fill(0),
+                        borderColor: '#1F4E78',
+                        tension: 0.1,
+                        fill: false
+                    }]
+                },
+                options: {
+                    ...options,
+                    plugins: {
+                        ...options.plugins,
+                        title: {
+                            display: true,
+                            text: 'Balance Mensual'
+                        }
+                    }
+                }
+            });
+
+            // Expenses Chart
+            const expensesCtx = document.getElementById('expensesChart').getContext('2d');
+            expensesChart = new Chart(expensesCtx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Ingresos',
+                        data: new Array(12).fill(0),
+                        backgroundColor: '#4CAF50'
+                    }, {
+                        label: 'Gastos',
+                        data: new Array(12).fill(0),
+                        backgroundColor: '#F44336'
+                    }]
+                },
+                options: {
+                    ...options,
+                    plugins: {
+                        ...options.plugins,
+                        title: {
+                            display: true,
+                            text: 'Ingresos vs Gastos'
+                        }
+                    }
+                }
+            });
+
+            // Distribution Chart
+            const distributionCtx = document.getElementById('distributionChart').getContext('2d');
+            distributionChart = new Chart(distributionCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: expenseCategories,
+                    datasets: [{
+                        data: new Array(expenseCategories.length).fill(0),
+                        backgroundColor: chartColors
+                    }]
+                },
+                options: {
+                    ...options,
+                    plugins: {
+                        ...options.plugins,
+                        title: {
+                            display: true,
+                            text: 'Distribución de Gastos'
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadSavedData() {
+            const savedData = localStorage.getItem('financialData');
+            const savedEntries = localStorage.getItem('dailyEntries');
+            
+            if (savedData) {
+                data = JSON.parse(savedData);
+                
+                // Ensure all categories exist in the loaded data
+                categories.forEach(category => {
+                    if (!data[category]) {
+                        data[category] = new Array(12).fill(0);
+                    }
+                });
+            } else {
+                categories.forEach(category => {
+                    data[category] = new Array(12).fill(0);
+                });
+            }
+
+            if (savedEntries) {
+                dailyEntries = JSON.parse(savedEntries);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('financialData', JSON.stringify(data));
+            localStorage.setItem('dailyEntries', JSON.stringify(dailyEntries));
+        }
+
+        function formatCurrency(value) {
+            return value.toLocaleString('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                maximumFractionDigits: 0
+            });
+        }
+
+        function updateCharts() {
+            // Update Balance Chart
+            balanceChart.data.datasets[0].data = data['Balance'];
+            balanceChart.update();
+
+            // Update Expenses Chart
+            expensesChart.data.datasets[0].data = data['Ingresos'];
+            expensesChart.data.datasets[1].data = data['Total Gastos'];
+            expensesChart.update();
+
+            // Update Distribution Chart
+            const totalExpenses = expenseCategories.map(category => 
+                data[category].reduce((a, b) => a + b, 0)
+            );
+            distributionChart.data.datasets[0].data = totalExpenses;
+            distributionChart.update();
+        }
+
+        function updateTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            categories.forEach((category, index) => {
+                const tr = document.createElement('tr');
+                if (category === 'Total Gastos') tr.className = 'total-row';
+                if (category === 'Balance') tr.className = 'balance-row';
+
+                const td = document.createElement('td');
+                td.textContent = category;
+                tr.appendChild(td);
+
+                let annualTotal = 0;
+
+                for (let month = 0; month < 12; month++) {
+                    const td = document.createElement('td');
+                    td.textContent = formatCurrency(data[category][month]);
+                    annualTotal += data[category][month];
+                    tr.appendChild(td);
+                }
+
+                const tdTotal = document.createElement('td');
+                tdTotal.textContent = formatCurrency(annualTotal);
+                tr.appendChild(tdTotal);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateCalculations() {
+            for (let month = 0; month < 12; month++) {
+                let totalGastos = 0;
+                // Sum all expense categories
+                expenseCategories.forEach(category => {
+                    totalGastos += data[category][month];
+                });
+                data['Total Gastos'][month] = totalGastos;
+                data['Balance'][month] = data['Ingresos'][month] - totalGastos;
+            }
+            updateTable();
+            updateCharts();
+            saveData();
+        }
+
+        function showSuccessMessage() {
+            const successMessage = document.getElementById('successMessage');
+            successMessage.style.display = 'block';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        document.getElementById('dailyEntryForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const entry = {
+                date: document.getElementById('entryDate').value,
+                category: document.getElementById('entryCategory').value,
+                amount: parseFloat(document.getElementById('entryAmount').value),
+                description: document.getElementById('entryDescription').value
+            };
+
+            // Crear una fecha con la zona horaria local
+            const entryDate = new Date(entry.date + 'T00:00:00');
+            
+            // Obtener el mes correcto (0-11)
+            const month = entryDate.getMonth();
+            
+            // Para depuración - mostrar el mes en la consola
+            console.log('Fecha seleccionada:', entry.date);
+            console.log('Mes detectado (0-indexado):', month);
+            console.log('Mes para mostrar:', months[month]);
+
+            data[entry.category][month] += entry.amount;
+            dailyEntries.push(entry);
+            
+            updateCalculations();
+            showSuccessMessage();
+            
+            this.reset();
+        });
+
+        document.getElementById('clearDataButton').addEventListener('click', function() {
+            if (confirm('¿Estás seguro de que deseas borrar todos los datos? Esta acción no se puede deshacer.')) {
+                categories.forEach(category => {
+                    data[category] = new Array(12).fill(0);
+                });
+                dailyEntries = [];
+                updateCalculations();
+                localStorage.clear();
+                alert('Datos borrados correctamente');
+            }
+        });
+
+        // Establecer la fecha actual como valor predeterminado
+        document.getElementById('entryDate').valueAsDate = new Date();
+
+        // Initialize everything
+        loadSavedData();
+        initializeCharts();
+        updateCalculations();
+    </script>
+</body>
+</html>
