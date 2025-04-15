@@ -21,7 +21,32 @@
         h1, h2 {
             color: #1F4E78;
             text-align: center;
+            margin-bottom: 20px;
+        }
+        .collapsible {
+            background-color: #eee;
+            color: #444;
+            cursor: pointer;
+            padding: 18px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 16px;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 0;
+        }
+        .active, .collapsible:hover {
+            background-color: #ccc;
+        }
+        .content {
+            padding: 20px;
+            background-color: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
             margin-bottom: 30px;
+            display: none;
+            overflow: hidden;
         }
         .table-container {
             width: 100%;
@@ -94,7 +119,7 @@
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             margin-bottom: 30px;
         }
-        .daily-entry form {
+        .daily-entry form, .category-form {
             display: grid;
             gap: 15px;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -123,6 +148,27 @@
             font-weight: bold;
             display: none;
         }
+        .category-list {
+            margin-top: 20px;
+            list-style-type: none;
+            padding: 0;
+        }
+        .category-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .category-item button {
+            background-color: #dc3545;
+            padding: 5px 10px;
+        }
+        .options-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -141,7 +187,39 @@
 <body>
     <div class="container">
         <h1>Control Financiero Anual</h1>
-        
+
+        <div>
+            <button type="button" class="collapsible">Gestión de Categorías</button>
+            <div class="content">
+                <div class="category-management">
+                    <h2>Gestión de Categorías</h2>
+                    <div class="category-form">
+                        <div class="form-group">
+                            <label for="newCategory">Nueva Categoría:</label>
+                            <input type="text" id="newCategory" placeholder="Nombre de la categoría">
+                        </div>
+                        <div class="form-group">
+                            <label for="categoryType">Tipo:</label>
+                            <select id="categoryType">
+                                <option value="expense">Gasto</option>
+                                <option value="income">Ingreso</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button type="button" id="addCategoryBtn">Agregar Categoría</button>
+                        </div>
+                    </div>
+                    <div id="categorySuccessMessage" class="success-message">Categoría agregada correctamente</div>
+
+                    <h3>Categorías de Gastos</h3>
+                    <ul id="expenseCategoriesList" class="category-list"></ul>
+
+                    <h3>Categorías de Ingresos</h3>
+                    <ul id="incomeCategoriesList" class="category-list"></ul>
+                </div>
+            </div>
+        </div>
+
         <div class="daily-entry">
             <h2>Registro Diario</h2>
             <form id="dailyEntryForm">
@@ -152,15 +230,7 @@
                 <div class="form-group">
                     <label for="entryCategory">Categoría:</label>
                     <select id="entryCategory" required>
-                        <option value="Ingresos">Ingresos</option>
-                        <option value="Pensión">Pensión</option>
-                        <option value="Cuentas Básicas">Cuentas Básicas</option>
-                        <option value="Bencina y Movilización">Bencina y Movilización</option>
-                        <option value="Comida">Comida</option>
-                        <option value="Entretenimiento">Entretenimiento</option>
-                        <option value="Cuerpo y Físico">Cuerpo y Físico</option>
-                        <option value="Ahorro">Ahorro</option>
-                    </select>
+                        </select>
                 </div>
                 <div class="form-group">
                     <label for="entryAmount">Monto:</label>
@@ -175,7 +245,12 @@
                 </div>
             </form>
             <div id="successMessage" class="success-message">Entrada registrada correctamente</div>
-            <button id="clearDataButton" style="margin-top: 20px;">Limpiar Datos</button>
+            <div class="options-group" style="margin-top: 20px;">
+                <button id="clearDataButton">Limpiar Todos los Datos</button>
+                <button id="exportDataButton">Exportar Datos</button>
+                <button id="importDataButton">Importar Datos</button>
+                <input type="file" id="importFileInput" style="display: none;">
+            </div>
         </div>
 
         <div class="table-container">
@@ -221,26 +296,9 @@
         let expensesChart = null;
         let distributionChart = null;
 
-        const categories = [
-            'Ingresos',
-            'Pensión',
-            'Cuentas Básicas',
-            'Bencina y Movilización',
-            'Comida',
-            'Entretenimiento',
-            'Cuerpo y Físico',
-            'Ahorro',
-            'Total Gastos',
-            'Balance'
-        ];
-
-        const months = [
-            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-        ];
-
-        // Define expense categories
-        const expenseCategories = [
+        // Categorías predeterminadas
+        const defaultIncomeCategories = ['Ingresos'];
+        const defaultExpenseCategories = [
             'Pensión',
             'Cuentas Básicas',
             'Bencina y Movilización',
@@ -250,20 +308,262 @@
             'Ahorro'
         ];
 
-        // Define chart colors
+        // Colores para los gráficos
         const chartColors = [
-            '#5DA5DA', // Azul claro - Pensión
-            '#FAA43A', // Naranja - Cuentas Básicas
-            '#60BD68', // Verde - Bencina y Movilización
-            '#F17CB0', // Rosa - Comida
-            '#B276B2', // Morado - Entretenimiento
-            '#DECF3F', // Amarillo - Cuerpo y Físico
-            '#F15854'  // Rojo - Ahorro
+            '#5DA5DA', '#FAA43A', '#60BD68', '#F17CB0',
+            '#B276B2', '#DECF3F', '#F15854', '#4D4D4D',
+            '#8CD17D', '#B2912F', '#9C9EDE', '#CC79A7',
+            '#D9AD26', '#55A868', '#B89AC6', '#D63A2A',
+            '#4878D0', '#A2AAA3', '#D65F5F', '#79BEDB'
         ];
 
+        // Meses
+        const months = [
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
+
+        // Variables principales
+        let incomeCategories = [];
+        let expenseCategories = [];
         let data = {};
         let dailyEntries = [];
 
+        // Inicialización
+        function init() {
+            loadSavedData();
+            updateCategoriesLists();
+            updateCategoryDropdown();
+            initializeCharts();
+            updateCalculations();
+
+            // Establecer la fecha actual como valor predeterminado
+            document.getElementById('entryDate').valueAsDate = new Date();
+
+            // Hacer que la sección de gestión de categorías sea plegable
+            const collapsible = document.querySelector('.collapsible');
+            collapsible.addEventListener('click', function() {
+                this.classList.toggle('active');
+                const content = this.nextElementSibling;
+                if (content.style.display === 'block') {
+                    content.style.display = 'none';
+                } else {
+                    content.style.display = 'block';
+                }
+            });
+        }
+
+        // Cargar datos guardados
+        function loadSavedData() {
+            const savedData = localStorage.getItem('financialData');
+            const savedEntries = localStorage.getItem('dailyEntries');
+            const savedIncomeCategories = localStorage.getItem('incomeCategories');
+            const savedExpenseCategories = localStorage.getItem('expenseCategories');
+
+            // Cargar categorías
+            if (savedIncomeCategories) {
+                incomeCategories = JSON.parse(savedIncomeCategories);
+            } else {
+                incomeCategories = [...defaultIncomeCategories];
+            }
+
+            if (savedExpenseCategories) {
+                expenseCategories = JSON.parse(savedExpenseCategories);
+            } else {
+                expenseCategories = [...defaultExpenseCategories];
+            }
+
+            // Cargar datos financieros
+            if (savedData) {
+                data = JSON.parse(savedData);
+            } else {
+                data = {};
+            }
+
+            // Asegurar que todas las categorías tengan datos
+            ensureAllCategoriesExist();
+
+            // Cargar entradas diarias
+            if (savedEntries) {
+                dailyEntries = JSON.parse(savedEntries);
+            }
+        }
+
+        // Asegurar que todas las categorías tengan datos
+        function ensureAllCategoriesExist() {
+            const allCategories = [...incomeCategories, ...expenseCategories, 'Total Gastos', 'Balance'];
+
+            allCategories.forEach(category => {
+                if (!data[category]) {
+                    data[category] = new Array(12).fill(0);
+                }
+            });
+        }
+
+        // Guardar datos
+        function saveData() {
+            localStorage.setItem('financialData', JSON.stringify(data));
+            localStorage.setItem('dailyEntries', JSON.stringify(dailyEntries));
+            localStorage.setItem('incomeCategories', JSON.stringify(incomeCategories));
+            localStorage.setItem('expenseCategories', JSON.stringify(expenseCategories));
+        }
+
+        // Actualizar las listas de categorías en la UI
+        function updateCategoriesLists() {
+            // Lista de categorías de gastos
+            const expenseList = document.getElementById('expenseCategoriesList');
+            expenseList.innerHTML = '';
+
+            expenseCategories.forEach(category => {
+                const li = document.createElement('li');
+                li.className = 'category-item';
+
+                const span = document.createElement('span');
+                span.textContent = category;
+                li.appendChild(span);
+
+                // No permitir eliminar las categorías predeterminadas
+                if (!defaultExpenseCategories.includes(category)) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.textContent = 'Eliminar';
+                    removeBtn.onclick = () => removeCategory(category, 'expense');
+                    li.appendChild(removeBtn);
+                }
+
+                expenseList.appendChild(li);
+            });
+
+            // Lista de categorías de ingresos
+            const incomeList = document.getElementById('incomeCategoriesList');
+            incomeList.innerHTML = '';
+
+            incomeCategories.forEach(category => {
+                const li = document.createElement('li');
+                li.className = 'category-item';
+
+                const span = document.createElement('span');
+                span.textContent = category;
+                li.appendChild(span);
+
+                // No permitir eliminar las categorías predeterminadas
+                if (!defaultIncomeCategories.includes(category)) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.textContent = 'Eliminar';
+                    removeBtn.onclick = () => removeCategory(category, 'income');
+                    li.appendChild(removeBtn);
+                }
+
+                incomeList.appendChild(li);
+            });
+        }
+
+        // Actualizar el dropdown de categorías
+        function updateCategoryDropdown() {
+            const dropdown = document.getElementById('entryCategory');
+            dropdown.innerHTML = '';
+
+            // Agregar grupos para ingresos y gastos
+            const incomeGroup = document.createElement('optgroup');
+            incomeGroup.label = 'Ingresos';
+
+            incomeCategories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                incomeGroup.appendChild(option);
+            });
+
+            dropdown.appendChild(incomeGroup);
+
+            const expenseGroup = document.createElement('optgroup');
+            expenseGroup.label = 'Gastos';
+
+            expenseCategories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                expenseGroup.appendChild(option);
+            });
+
+            dropdown.appendChild(expenseGroup);
+        }
+
+        // Añadir una nueva categoría
+        function addCategory() {
+            const categoryName = document.getElementById('newCategory').value.trim();
+            const categoryType = document.getElementById('categoryType').value;
+
+            if (!categoryName) {
+                alert('Por favor ingresa un nombre para la categoría');
+                return;
+            }
+
+            // Verificar que la categoría no exista ya
+            if (incomeCategories.includes(categoryName) || expenseCategories.includes(categoryName) ||
+                categoryName === 'Total Gastos' || categoryName === 'Balance') {
+                alert('Esta categoría ya existe');
+                return;
+            }
+
+            // Añadir la categoría según el tipo
+            if (categoryType === 'income') {
+                incomeCategories.push(categoryName);
+            } else {
+                expenseCategories.push(categoryName);
+            }
+
+            // Inicializar datos para la nueva categoría
+            data[categoryName] = new Array(12).fill(0);
+
+            // Actualizar la UI
+            updateCategoriesLists();
+            updateCategoryDropdown();
+            updateCalculations();
+
+            // Mostrar mensaje de éxito
+            const successMessage = document.getElementById('categorySuccessMessage');
+            successMessage.style.display = 'block';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+
+            // Limpiar el campo
+            document.getElementById('newCategory').value = '';
+        }
+
+        // Eliminar una categoría
+        function removeCategory(categoryName, type) {
+            if (!confirm(`¿Estás seguro de que deseas eliminar la categoría "${categoryName}"?`)) {
+                return;
+            }
+
+            // Remover la categoría de la lista correspondiente
+            if (type === 'income') {
+                const index = incomeCategories.indexOf(categoryName);
+                if (index > -1) {
+                    incomeCategories.splice(index, 1);
+                }
+            } else {
+                const index = expenseCategories.indexOf(categoryName);
+                if (index > -1) {
+                    expenseCategories.splice(index, 1);
+                }
+            }
+
+            // Eliminar la categoría de los datos
+            delete data[categoryName];
+
+            // Filtrar las entradas diarias para eliminar las de esta categoría
+            dailyEntries = dailyEntries.filter(entry => entry.category !== categoryName);
+
+            // Actualizar la UI
+            updateCategoriesLists();
+            updateCategoryDropdown();
+            updateCalculations();
+            saveData();
+        }
+
+        // Inicializar gráficos
         function initializeCharts() {
             const options = {
                 responsive: true,
@@ -337,7 +637,7 @@
                     labels: expenseCategories,
                     datasets: [{
                         data: new Array(expenseCategories.length).fill(0),
-                        backgroundColor: chartColors
+                        backgroundColor: chartColors.slice(0, expenseCategories.length)
                     }]
                 },
                 options: {
@@ -353,35 +653,7 @@
             });
         }
 
-        function loadSavedData() {
-            const savedData = localStorage.getItem('financialData');
-            const savedEntries = localStorage.getItem('dailyEntries');
-            
-            if (savedData) {
-                data = JSON.parse(savedData);
-                
-                // Ensure all categories exist in the loaded data
-                categories.forEach(category => {
-                    if (!data[category]) {
-                        data[category] = new Array(12).fill(0);
-                    }
-                });
-            } else {
-                categories.forEach(category => {
-                    data[category] = new Array(12).fill(0);
-                });
-            }
-
-            if (savedEntries) {
-                dailyEntries = JSON.parse(savedEntries);
-            }
-        }
-
-        function saveData() {
-            localStorage.setItem('financialData', JSON.stringify(data));
-            localStorage.setItem('dailyEntries', JSON.stringify(dailyEntries));
-        }
-
+        // Formatear moneda
         function formatCurrency(value) {
             return value.toLocaleString('es-CL', {
                 style: 'currency',
@@ -390,69 +662,108 @@
             });
         }
 
+        // Actualizar gráficos
         function updateCharts() {
-            // Update Balance Chart
+            // Actualizar gráfico de balance
             balanceChart.data.datasets[0].data = data['Balance'];
             balanceChart.update();
 
-            // Update Expenses Chart
-            expensesChart.data.datasets[0].data = data['Ingresos'];
+            // Actualizar gráfico de ingresos vs gastos
+            let totalIngresos = new Array(12).fill(0);
+            incomeCategories.forEach(category => {
+                for (let i = 0; i < 12; i++) {
+                    totalIngresos[i] += data[category][i];
+                }
+            });
+
+            expensesChart.data.datasets[0].data = totalIngresos;
             expensesChart.data.datasets[1].data = data['Total Gastos'];
             expensesChart.update();
 
-            // Update Distribution Chart
-            const totalExpenses = expenseCategories.map(category => 
+            // Actualizar gráfico de distribución de gastos
+            // Recalcular totales anuales por categoría de gasto
+            const totalExpenses = expenseCategories.map(category =>
                 data[category].reduce((a, b) => a + b, 0)
             );
+
+            // Actualizar etiquetas y datos
+            distributionChart.data.labels = expenseCategories;
             distributionChart.data.datasets[0].data = totalExpenses;
+            distributionChart.data.datasets[0].backgroundColor = chartColors.slice(0, expenseCategories.length);
             distributionChart.update();
         }
 
+        // Actualizar tabla
         function updateTable() {
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
 
-            categories.forEach((category, index) => {
-                const tr = document.createElement('tr');
-                if (category === 'Total Gastos') tr.className = 'total-row';
-                if (category === 'Balance') tr.className = 'balance-row';
-
-                const td = document.createElement('td');
-                td.textContent = category;
-                tr.appendChild(td);
-
-                let annualTotal = 0;
-
-                for (let month = 0; month < 12; month++) {
-                    const td = document.createElement('td');
-                    td.textContent = formatCurrency(data[category][month]);
-                    annualTotal += data[category][month];
-                    tr.appendChild(td);
-                }
-
-                const tdTotal = document.createElement('td');
-                tdTotal.textContent = formatCurrency(annualTotal);
-                tr.appendChild(tdTotal);
-
-                tbody.appendChild(tr);
+            // Primero mostrar categorías de ingresos
+            incomeCategories.forEach(category => {
+                addRowToTable(tbody, category);
             });
+
+            // Luego mostrar categorías de gastos
+            expenseCategories.forEach(category => {
+                addRowToTable(tbody, category);
+            });
+
+            // Finalmente mostrar totales y balance
+            addRowToTable(tbody, 'Total Gastos', 'total-row');
+            addRowToTable(tbody, 'Balance', 'balance-row');
         }
 
+        // Añadir fila a la tabla
+        function addRowToTable(tbody, category, className = '') {
+            const tr = document.createElement('tr');
+            if (className) tr.className = className;
+
+            const td = document.createElement('td');
+            td.textContent = category;
+            tr.appendChild(td);
+
+            let annualTotal = 0;
+
+            for (let month = 0; month < 12; month++) {
+                const td = document.createElement('td');
+                td.textContent = formatCurrency(data[category][month]);
+                annualTotal += data[category][month];
+                tr.appendChild(td);
+            }
+
+            const tdTotal = document.createElement('td');
+            tdTotal.textContent = formatCurrency(annualTotal);
+            tr.appendChild(tdTotal);
+
+            tbody.appendChild(tr);
+        }
+
+        // Actualizar cálculos
         function updateCalculations() {
             for (let month = 0; month < 12; month++) {
+                // Calcular total de gastos
                 let totalGastos = 0;
-                // Sum all expense categories
                 expenseCategories.forEach(category => {
                     totalGastos += data[category][month];
                 });
                 data['Total Gastos'][month] = totalGastos;
-                data['Balance'][month] = data['Ingresos'][month] - totalGastos;
+
+                // Calcular total de ingresos
+                let totalIngresos = 0;
+                incomeCategories.forEach(category => {
+                    totalIngresos += data[category][month];
+                });
+
+                // Calcular balance
+                data['Balance'][month] = totalIngresos - totalGastos;
             }
+
             updateTable();
             updateCharts();
             saveData();
         }
 
+        // Mostrar mensaje de éxito
         function showSuccessMessage() {
             const successMessage = document.getElementById('successMessage');
             successMessage.style.display = 'block';
@@ -461,55 +772,131 @@
             }, 3000);
         }
 
-        document.getElementById('dailyEntryForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const entry = {
-                date: document.getElementById('entryDate').value,
-                category: document.getElementById('entryCategory').value,
-                amount: parseFloat(document.getElementById('entryAmount').value),
-                description: document.getElementById('entryDescription').value
+        // Exportar datos
+        function exportData() {
+            const exportData = {
+                incomeCategories,
+                expenseCategories,
+                data,
+                dailyEntries
             };
 
-            // Crear una fecha con la zona horaria local
-            const entryDate = new Date(entry.date + 'T00:00:00');
-            
-            // Obtener el mes correcto (0-11)
-            const month = entryDate.getMonth();
-            
-            // Para depuración - mostrar el mes en la consola
-            console.log('Fecha seleccionada:', entry.date);
-            console.log('Mes detectado (0-indexado):', month);
-            console.log('Mes para mostrar:', months[month]);
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "control_financiero_export.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
 
-            data[entry.category][month] += entry.amount;
-            dailyEntries.push(entry);
-            
-            updateCalculations();
-            showSuccessMessage();
-            
-            this.reset();
-        });
+        // Importar datos
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-        document.getElementById('clearDataButton').addEventListener('click', function() {
-            if (confirm('¿Estás seguro de que deseas borrar todos los datos? Esta acción no se puede deshacer.')) {
-                categories.forEach(category => {
-                    data[category] = new Array(12).fill(0);
-                });
-                dailyEntries = [];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+
+                    // Validar que los datos tengan la estructura correcta
+                    if (!importedData.incomeCategories || !importedData.expenseCategories ||
+                        !importedData.data || !importedData.dailyEntries) {
+                        throw new Error('Formato de archivo inválido');
+                    }
+
+                    // Cargar los datos importados
+                    incomeCategories = importedData.incomeCategories;
+                    expenseCategories = importedData.expenseCategories;
+                    data = importedData.data;
+                    dailyEntries = importedData.dailyEntries;
+
+                    // Actualizar la UI
+                    updateCategoriesLists();
+                    updateCategoryDropdown();
+                    updateCalculations();
+
+                    alert('Datos importados correctamente');
+                } catch (error) {
+                    alert('Error al importar los datos: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+
+            // Limpiar el input para permitir seleccionar el mismo archivo nuevamente
+            event.target.value = '';
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar
+            init();
+
+            // Evento para agregar categoría
+            document.getElementById('addCategoryBtn').addEventListener('click', addCategory);
+
+            // Evento para agregar entrada diaria
+            document.getElementById('dailyEntryForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const entry = {
+                    date: document.getElementById('entryDate').value,
+                    category: document.getElementById('entryCategory').value,
+                    amount: parseFloat(document.getElementById('entryAmount').value),
+                    description: document.getElementById('entryDescription').value
+                };
+
+                // Crear una fecha con la zona horaria local
+                const entryDate = new Date(entry.date + 'T00:00:00');
+
+                // Obtener el mes (0-11)
+                const month = entryDate.getMonth();
+
+                // Actualizar los datos
+                data[entry.category][month] += entry.amount;
+                dailyEntries.push(entry);
+
                 updateCalculations();
-                localStorage.clear();
-                alert('Datos borrados correctamente');
-            }
+                showSuccessMessage();
+
+                this.reset();
+                document.getElementById('entryDate').valueAsDate = new Date();
+            });
+
+            // Evento para limpiar datos
+            document.getElementById('clearDataButton').addEventListener('click', function() {
+                if (confirm('¿Estás seguro de que deseas borrar todos los datos? Esta acción no se puede deshacer.')) {
+                    // Restablecer categorías a las predeterminadas
+                    incomeCategories = [...defaultIncomeCategories];
+                    expenseCategories = [...defaultExpenseCategories];
+
+                    // Limpiar datos
+                    data = {};
+                    ensureAllCategoriesExist();
+
+                    dailyEntries = [];
+
+                    // Actualizar UI
+                    updateCategoriesLists();
+                    updateCategoryDropdown();
+                    updateCalculations();
+
+                    localStorage.clear();
+                    alert('Datos borrados correctamente');
+                }
+            });
+
+            // Evento para exportar datos
+            document.getElementById('exportDataButton').addEventListener('click', exportData);
+
+            // Evento para importar datos
+            document.getElementById('importDataButton').addEventListener('click', function() {
+                document.getElementById('importFileInput').click();
+            });
+
+            document.getElementById('importFileInput').addEventListener('change', importData);
         });
-
-        // Establecer la fecha actual como valor predeterminado
-        document.getElementById('entryDate').valueAsDate = new Date();
-
-        // Initialize everything
-        loadSavedData();
-        initializeCharts();
-        updateCalculations();
     </script>
 </body>
 </html>
